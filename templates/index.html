@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor PDF ↔ Word By Cxrzin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Conversor PDF ↔ Word</h1>
+        <form action="/convert" method="post" enctype="multipart/form-data">
+            <label for="fileInput">Selecione um arquivo:</label>
+            <input type="file" id="fileInput" name="file" required>
+            
+            <label for="conversionType">Escolha o tipo de conversão:</label>
+            <select id="conversionType" name="conversionType" required>
+                <option value="pdf-to-word">PDF para Word</option>
+                <option value="word-to-pdf">Word para PDF</option>
+            </select>
+            
+            <button type="submit">Converter</button>
+        </form>
+
+        {% if download_link %}
+        <div id="result">
+            <h2>Resultado:</h2>
+            <a href="{{ download_link }}" download>Baixar Arquivo Convertido</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
