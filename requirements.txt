@@ -5,3 +5,4 @@ pdfplumber
 fitz
 docxtpl
 frontend
+pdf2docx
