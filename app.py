@@ -4,7 +4,6 @@ from docx import Document
 from docx2pdf import convert as word_to_pdf
 import pdfplumber
 from PyPDF2 import PdfReader
-from pdf2docx import Converter as Pdf2DocxConverter
 import fitz
 
 app = Flask(__name__)
@@ -72,14 +71,6 @@ def convert_pdf_to_word(input_path, output_path):
             return
     except Exception as e:
         errors.append(f"Erro com pdfplumber: {str(e)}")
-
-    try:
-        converter = Pdf2DocxConverter(input_path)
-        converter.convert(output_path)
-        converter.close()
-        return
-    except Exception as e:
-        errors.append(f"Erro com pdf2docx: {str(e)}") 
 
     try:
         pdf_document = fitz.open(input_path)
