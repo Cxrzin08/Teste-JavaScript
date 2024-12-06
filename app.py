@@ -1,9 +1,10 @@
 import os
 from flask import Flask, request, render_template, send_file, url_for
 from werkzeug.utils import secure_filename
-from pdf2docx import Converter
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from docx import Document
+import pdfplumber
 
 app = Flask(__name__)
 
@@ -66,20 +67,36 @@ def download_file(filename):
     return send_file(file_path, as_attachment=True)
 
 def convert_pdf_to_word(input_path, output_path):
-    """Converte PDF para Word usando pdf2docx."""
+    """Converte PDF para Word com melhor extração de texto usando pdfplumber."""
     try:
-        cv = Converter(input_path)
-        cv.convert(output_path)
-        cv.close()
+        doc = Document()
+        with pdfplumber.open(input_path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    doc.add_paragraph(text)
+        doc.save(output_path)
     except Exception as e:
         raise Exception(f"Erro ao converter PDF para Word: {str(e)}")
 
 def convert_word_to_pdf(input_path, output_path):
-    """Converte Word para PDF utilizando reportlab."""
+    """Converte Word para PDF com formatação melhorada."""
     try:
+        doc = Document(input_path)
         c = canvas.Canvas(output_path, pagesize=letter)
-        c.drawString(100, 750, "Conteúdo convertido de Word para PDF")
-        c.showPage()
+
+        width, height = letter
+        y = height - 50  # Margem inicial
+        line_height = 12
+
+        for paragraph in doc.paragraphs:
+            for line in paragraph.text.split("\n"):
+                if y < 50:  # Nova página se atingir o limite inferior
+                    c.showPage()
+                    y = height - 50
+                c.drawString(50, y, line)
+                y -= line_height
+
         c.save()
     except Exception as e:
         raise Exception(f"Erro ao converter Word para PDF: {str(e)}")
