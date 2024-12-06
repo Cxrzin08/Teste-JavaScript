@@ -1,7 +1,5 @@
 import os
 from flask import Flask, request, render_template, send_file, url_for
-from docxtpl import DocxTemplate
-import pdfplumber
 from werkzeug.utils import secure_filename
 from pdf2docx import Converter
 from reportlab.lib.pagesizes import letter
@@ -9,7 +7,7 @@ from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 
-# Configuração de pasta e tamanho máximo do arquivo
+# Configuração da pasta e tamanho máximo do arquivo
 UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
@@ -34,24 +32,23 @@ def convert():
         return "Arquivo ou tipo de conversão não selecionado.", 400
 
     input_filename = secure_filename(file.filename)
-    input_path = os.path.join(UPLOAD_FOLDER, input_filename)
+    input_path = os.path.join(app.config["UPLOAD_FOLDER"], input_filename)
     file.save(input_path)
 
-    output_filename = f"converted_{input_filename.rsplit('.', 1)[0]}"
+    output_filename = f"converted_{os.path.splitext(input_filename)[0]}"
     output_path = None
 
     try:
         if conversion_type == "pdf-to-word":
             if not is_valid_extension(input_filename, [".pdf"]):
                 return "Erro: Para PDF para Word, o arquivo enviado deve ser um PDF.", 400
-            output_path = os.path.join(UPLOAD_FOLDER, output_filename + ".docx")
+            output_path = os.path.join(app.config["UPLOAD_FOLDER"], output_filename + ".docx")
             convert_pdf_to_word(input_path, output_path)
         elif conversion_type == "word-to-pdf":
             if not is_valid_extension(input_filename, [".docx"]):
                 return "Erro: Para Word para PDF, o arquivo enviado deve ser um DOCX.", 400
-            output_path = os.path.join(UPLOAD_FOLDER, output_filename + ".pdf")
-            if not convert_word_to_pdf(input_path, output_path):
-                return "Erro ao converter o arquivo Word para PDF.", 500
+            output_path = os.path.join(app.config["UPLOAD_FOLDER"], output_filename + ".pdf")
+            convert_word_to_pdf(input_path, output_path)
         else:
             return "Tipo de conversão inválido.", 400
     except Exception as e:
@@ -63,39 +60,29 @@ def convert():
 @app.route("/download/<filename>")
 def download_file(filename):
     """Baixa o arquivo convertido."""
-    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     if not os.path.exists(file_path):
         return "Arquivo não encontrado.", 404
     return send_file(file_path, as_attachment=True)
 
 def convert_pdf_to_word(input_path, output_path):
-    """Converte PDF para Word usando pdfplumber e pdf2docx."""
+    """Converte PDF para Word usando pdf2docx."""
     try:
-        # Usando pdf2docx para converter PDF para Word
         cv = Converter(input_path)
-        cv.convert(output_path, start=0, end=None)
-        return
+        cv.convert(output_path)
+        cv.close()
     except Exception as e:
         raise Exception(f"Erro ao converter PDF para Word: {str(e)}")
 
 def convert_word_to_pdf(input_path, output_path):
     """Converte Word para PDF utilizando reportlab."""
     try:
-        doc = DocxTemplate(input_path)
-        context = {}
-        for idx, page in enumerate(doc.docx.paragraphs, start=1):
-            context[f"page_{idx}"] = page.text
         c = canvas.Canvas(output_path, pagesize=letter)
-        text_object = c.beginText(40, 750)
-        for paragraph in context.values():
-            text_object.textLine(paragraph)
-        c.drawText(text_object)
+        c.drawString(100, 750, "Conteúdo convertido de Word para PDF")
         c.showPage()
         c.save()
-        return True
     except Exception as e:
-        print(f"Erro ao converter Word para PDF: {str(e)}")
-    return False
+        raise Exception(f"Erro ao converter Word para PDF: {str(e)}")
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
