@@ -2,8 +2,10 @@ import os
 from flask import Flask, request, render_template, send_file, url_for
 from docxtpl import DocxTemplate
 import pdfplumber
-import fitz
 from werkzeug.utils import secure_filename
+from pdf2docx import Converter
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 
@@ -67,46 +69,29 @@ def download_file(filename):
     return send_file(file_path, as_attachment=True)
 
 def convert_pdf_to_word(input_path, output_path):
-    """Converte PDF para Word usando pdfplumber e PyMuPDF."""
-    errors = []
+    """Converte PDF para Word usando pdfplumber e pdf2docx."""
     try:
-        # Primeira tentativa: pdfplumber
-        with pdfplumber.open(input_path) as pdf:
-            doc = DocxTemplate()
-            context = {}
-            for idx, page in enumerate(pdf.pages, start=1):
-                context[f"page_{idx}"] = page.extract_text() or "[Página sem texto legível]"
-            doc.render(context)
-            doc.save(output_path)
-            return
-    except Exception as e:
-        errors.append(f"Erro com pdfplumber: {str(e)}")
-
-    try:
-        # Segunda tentativa: PyMuPDF
-        pdf_document = fitz.open(input_path)
-        doc = DocxTemplate()
-        context = {}
-        for idx, page in enumerate(pdf_document, start=1):
-            context[f"page_{idx}"] = page.get_text("text") or "[Página sem texto legível]"
-        doc.render(context)
-        doc.save(output_path)
+        # Usando pdf2docx para converter PDF para Word
+        cv = Converter(input_path)
+        cv.convert(output_path, start=0, end=None)
         return
     except Exception as e:
-        errors.append(f"Erro com PyMuPDF: {str(e)}")
-
-    raise Exception(f"Todas as tentativas de conversão falharam: {errors}")
+        raise Exception(f"Erro ao converter PDF para Word: {str(e)}")
 
 def convert_word_to_pdf(input_path, output_path):
-    """Converte Word para PDF utilizando alternativa simples."""
+    """Converte Word para PDF utilizando reportlab."""
     try:
-        # Usa PyMuPDF para gerar PDF a partir de texto extraído
-        doc = fitz.open()
-        with open(input_path, "r") as file:
-            lines = file.readlines()
-            for line in lines:
-                doc.insert_page(-1, text=line)
-        doc.save(output_path)
+        doc = DocxTemplate(input_path)
+        context = {}
+        for idx, page in enumerate(doc.docx.paragraphs, start=1):
+            context[f"page_{idx}"] = page.text
+        c = canvas.Canvas(output_path, pagesize=letter)
+        text_object = c.beginText(40, 750)
+        for paragraph in context.values():
+            text_object.textLine(paragraph)
+        c.drawText(text_object)
+        c.showPage()
+        c.save()
         return True
     except Exception as e:
         print(f"Erro ao converter Word para PDF: {str(e)}")
