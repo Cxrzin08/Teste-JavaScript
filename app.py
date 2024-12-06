@@ -1,9 +1,7 @@
 import os
 from flask import Flask, request, render_template, send_file, url_for
-from docx import Document
-from docx2pdf import convert as word_to_pdf
+from docxtpl import DocxTemplate
 import pdfplumber
-from PyPDF2 import PdfReader
 import fitz
 from werkzeug.utils import secure_filename
 
@@ -69,16 +67,17 @@ def download_file(filename):
     return send_file(file_path, as_attachment=True)
 
 def convert_pdf_to_word(input_path, output_path):
-    """Converte PDF para Word usando pdfplumber e PyMuPDF como alternativas."""
+    """Converte PDF para Word usando pdfplumber e PyMuPDF."""
     errors = []
     try:
         # Primeira tentativa: pdfplumber
         with pdfplumber.open(input_path) as pdf:
-            document = Document()
-            for page in pdf.pages:
-                text = page.extract_text()
-                document.add_paragraph(text if text else "[Página sem texto legível]")
-            document.save(output_path)
+            doc = DocxTemplate()
+            context = {}
+            for idx, page in enumerate(pdf.pages, start=1):
+                context[f"page_{idx}"] = page.extract_text() or "[Página sem texto legível]"
+            doc.render(context)
+            doc.save(output_path)
             return
     except Exception as e:
         errors.append(f"Erro com pdfplumber: {str(e)}")
@@ -86,26 +85,29 @@ def convert_pdf_to_word(input_path, output_path):
     try:
         # Segunda tentativa: PyMuPDF
         pdf_document = fitz.open(input_path)
-        document = Document()
-        for page in pdf_document:
-            text = page.get_text("text")
-            document.add_paragraph(text if text.strip() else "[Página sem texto legível]")
-        document.save(output_path)
+        doc = DocxTemplate()
+        context = {}
+        for idx, page in enumerate(pdf_document, start=1):
+            context[f"page_{idx}"] = page.get_text("text") or "[Página sem texto legível]"
+        doc.render(context)
+        doc.save(output_path)
         return
     except Exception as e:
         errors.append(f"Erro com PyMuPDF: {str(e)}")
 
-    # Todas as tentativas falharam
     raise Exception(f"Todas as tentativas de conversão falharam: {errors}")
 
 def convert_word_to_pdf(input_path, output_path):
-    """Converte Word para PDF usando docx2pdf."""
+    """Converte Word para PDF utilizando alternativa simples."""
     try:
-        word_to_pdf(input_path, os.path.dirname(output_path))
-        generated_pdf = input_path.replace(".docx", ".pdf")
-        if os.path.exists(generated_pdf):
-            os.rename(generated_pdf, output_path)
-            return True
+        # Usa PyMuPDF para gerar PDF a partir de texto extraído
+        doc = fitz.open()
+        with open(input_path, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                doc.insert_page(-1, text=line)
+        doc.save(output_path)
+        return True
     except Exception as e:
         print(f"Erro ao converter Word para PDF: {str(e)}")
     return False

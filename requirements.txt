@@ -2,5 +2,5 @@ docx2pdf
 gunicorn
 flask
 pdfplumber
-docx
 fitz
+docxtpl
