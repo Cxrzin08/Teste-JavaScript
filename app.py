@@ -9,7 +9,7 @@ import fitz  # PyMuPDF
 
 # Configuração do Flask
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = os.path.join(os.getcwd(), "uploads")  # Caminho absoluto
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.route("/", methods=["GET"])
@@ -113,4 +113,4 @@ def convert_word_to_pdf(input_path, output_path):
         return False
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
