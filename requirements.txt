@@ -4,3 +4,5 @@ docxtpl==0.16.4
 pdf2docx==0.5.6
 reportlab==3.6.12
 gunicorn==21.2.0
+docx
+werkzeug
